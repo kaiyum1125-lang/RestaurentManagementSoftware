@@ -1,5 +1,6 @@
 package com.example.Restaurant_Management_Software.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.math.BigDecimal;
@@ -27,5 +28,6 @@ public class MenuItem {
     // ManyToOne relationship with MenuCategory
     @ManyToOne
     @JoinColumn(name = "category_id")
+    @JsonIgnoreProperties("items")
     private MenuCategory category;
 }
