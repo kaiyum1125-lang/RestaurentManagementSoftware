@@ -46,4 +46,9 @@ public class MenuController {
         menuService.deleteMenuItem(id);
         return ResponseEntity.ok().build();
     }
+    // Add to MenuController.java
+    @GetMapping("/categories")
+    public ResponseEntity<List<MenuCategory>> getAllCategories() {
+        return ResponseEntity.ok(menuService.getAllCategories());
+    }
 }

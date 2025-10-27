@@ -2,8 +2,10 @@ package com.example.Restaurant_Management_Software.service;
 
 import com.example.Restaurant_Management_Software.model.MenuCategory;
 import com.example.Restaurant_Management_Software.model.MenuItem;
+import com.example.Restaurant_Management_Software.repository.MenuCategoryRepository;
 import com.example.Restaurant_Management_Software.repository.MenuItemRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.List;
 
@@ -12,6 +14,8 @@ import java.util.List;
 public class MenuService {
 
     private final MenuItemRepository menuItemRepository;
+    private final MenuCategoryRepository menuCategoryRepository;
+
 
     public List<MenuItem> getAllMenuItems() {
         return menuItemRepository.findAll();
@@ -47,5 +51,9 @@ public class MenuService {
         MenuItem menuItem = menuItemRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Menu item not found"));
         menuItemRepository.delete(menuItem);
+    }
+
+    public List<MenuCategory> getAllCategories() {
+        return menuCategoryRepository.findAll();
     }
 }

@@ -24,6 +24,6 @@ public class OrderItem {
     private Order order;
 
     private Integer quantity;
-    private BigDecimal unitPrice;
+    private Double unitPrice;
     private String specialInstructions;
 }

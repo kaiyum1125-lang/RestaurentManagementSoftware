@@ -63,7 +63,7 @@ public class OrderController {
     }
 
     /**
-     * 🗑️ Delete order by ID
+     * Delete order by ID
      */
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete order by ID")

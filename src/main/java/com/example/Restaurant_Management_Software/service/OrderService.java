@@ -28,7 +28,7 @@ public class OrderService {
      */
     @Transactional
     public OrderResponse createOrder(OrderRequest request) {
-        // 🧍 Find the user who placed the order
+        // Find the user who placed the order
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -37,7 +37,7 @@ public class OrderService {
         order.setStatus(Order.OrderStatus.PENDING);
         order.setOrderItems(new ArrayList<>());
 
-        BigDecimal totalAmount = BigDecimal.ZERO;
+        double totalAmount = 0d;
 
         // 🧾 Process each order item
         for (OrderRequest.OrderItemRequest itemRequest : request.getItems()) {
@@ -60,12 +60,11 @@ public class OrderService {
             order.getOrderItems().add(orderItem);
 
             // Calculate total
-            BigDecimal itemTotal = menuItem.getPrice()
-                    .multiply(BigDecimal.valueOf(itemRequest.getQuantity()));
-            totalAmount = totalAmount.add(itemTotal);
+            Double itemTotal = menuItem.getPrice() * itemRequest.getQuantity();
+            totalAmount = totalAmount * itemTotal;
         }
 
-        order.setTotalAmount(totalAmount.doubleValue());
+        order.setTotalAmount((double) totalAmount);
 
         Order savedOrder = orderRepository.save(order);
 
