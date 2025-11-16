@@ -32,6 +32,15 @@ public class OrderController {
         return ResponseEntity.ok(response);
     }
 
+
+    @GetMapping
+    @Operation(summary = "Get All orders")
+    public ResponseEntity<List<OrderResponse>> getOrders() {
+        List<OrderResponse> responses = orderService.getOrders();
+        return ResponseEntity.ok(responses);
+    }
+
+
     /**
      * ✅ Get all orders by status
      */

@@ -2,7 +2,10 @@ package com.example.Restaurant_Management_Software.service;
 
 import com.example.Restaurant_Management_Software.dto.OrderRequest;
 import com.example.Restaurant_Management_Software.dto.OrderResponse;
-import com.example.Restaurant_Management_Software.model.*;
+import com.example.Restaurant_Management_Software.model.MenuItem;
+import com.example.Restaurant_Management_Software.model.Order;
+import com.example.Restaurant_Management_Software.model.OrderItem;
+import com.example.Restaurant_Management_Software.model.User;
 import com.example.Restaurant_Management_Software.repository.MenuItemRepository;
 import com.example.Restaurant_Management_Software.repository.OrderRepository;
 import com.example.Restaurant_Management_Software.repository.UserRepository;
@@ -10,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -23,31 +25,33 @@ public class OrderService {
     private final MenuItemRepository menuItemRepository;
     private final UserRepository userRepository;
 
-    /**
-     * ✅ Create a new order
-     */
     @Transactional
     public OrderResponse createOrder(OrderRequest request) {
-        // Find the user who placed the order
+
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         Order order = new Order();
         order.setUser(user);
         order.setStatus(Order.OrderStatus.PENDING);
+
+        // 🟢 FIX: No `toString()` here — directly set enum
+        order.setOrderType(request.getOrderType());
+
+        order.setTableNumber(request.getTableNumber());
+        order.setPaymentMethod(request.getPaymentMethod());
+        order.setCustomerName(request.getCustomerName());
+        order.setCustomerPhone(request.getCustomerPhone());
+        order.setDeliveryAddress(request.getDeliveryAddress());
+        order.setOrderNotes(request.getOrderNotes());
+
         order.setOrderItems(new ArrayList<>());
+        double subtotal = 0d;
 
-        double totalAmount = 0d;
-
-        // 🧾 Process each order item
         for (OrderRequest.OrderItemRequest itemRequest : request.getItems()) {
-            MenuItem menuItem = menuItemRepository.findById(itemRequest.getMenuItemId())
-                    .orElseThrow(() -> new RuntimeException("Menu item not found: " + itemRequest.getMenuItemId()));
 
-            // 🟡 Check availability
-            if (!menuItem.isAvailable()) {
-                throw new RuntimeException("Menu item not available: " + menuItem.getName());
-            }
+            MenuItem menuItem = menuItemRepository.findById(itemRequest.getMenuItemId())
+                    .orElseThrow(() -> new RuntimeException("Menu item not found"));
 
             OrderItem orderItem = new OrderItem();
             orderItem.setOrder(order);
@@ -56,85 +60,84 @@ public class OrderService {
             orderItem.setUnitPrice(menuItem.getPrice());
             orderItem.setSpecialInstructions(itemRequest.getSpecialInstructions());
 
-            // Add item to order
+            subtotal += menuItem.getPrice() * itemRequest.getQuantity();
             order.getOrderItems().add(orderItem);
-
-            // Calculate total
-            Double itemTotal = menuItem.getPrice() * itemRequest.getQuantity();
-            totalAmount = totalAmount * itemTotal;
         }
 
-        order.setTotalAmount((double) totalAmount);
+        order.setSubtotal(subtotal);
+        order.setTaxAmount(subtotal * 0.1);
+
+        // 🟢 FIX: compare enum correctly
+        order.setDeliveryFee(request.getOrderType() == Order.OrderType.DELIVERY ? 3.99 : 0.0);
+
+        order.setDiscount(0.0);
+        order.setTotalAmount(order.getSubtotal() + order.getTaxAmount() + order.getDeliveryFee());
 
         Order savedOrder = orderRepository.save(order);
+        savedOrder.setOrderNumber("ORD-" + savedOrder.getId());
+        orderRepository.save(savedOrder);
 
         return mapToOrderResponse(savedOrder);
     }
 
-    /**
-     * ✅ Update order status (PENDING → IN_PROGRESS → COMPLETED → CANCELLED)
-     */
-    @Transactional
     public OrderResponse updateOrderStatus(Long orderId, Order.OrderStatus status) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
         order.setStatus(status);
-        Order updatedOrder = orderRepository.save(order);
-
-        return mapToOrderResponse(updatedOrder);
+        return mapToOrderResponse(orderRepository.save(order));
     }
 
-    /**
-     * ✅ Get orders by specific status
-     */
     public List<OrderResponse> getOrdersByStatus(Order.OrderStatus status) {
-        List<Order> orders = orderRepository.findByStatus(status);
-        return orders.stream()
+        return orderRepository.findByStatus(status)
+                .stream()
                 .map(this::mapToOrderResponse)
                 .collect(Collectors.toList());
     }
 
-    /**
-     * ✅ Get a single order by ID
-     */
     public OrderResponse getOrderById(Long id) {
-        Order order = orderRepository.findById(id)
+        return orderRepository.findById(id)
+                .map(this::mapToOrderResponse)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
-        return mapToOrderResponse(order);
     }
 
-    /**
-     * ✅ Helper: Convert Order → OrderResponse
-     */
+    public void deleteOrderById(Long id) {
+        if (!orderRepository.existsById(id))
+            throw new RuntimeException("Order not found");
+        orderRepository.deleteById(id);
+    }
+
     private OrderResponse mapToOrderResponse(Order order) {
         OrderResponse response = new OrderResponse();
         response.setId(order.getId());
         response.setStatus(order.getStatus().name());
+        response.setSubtotal(order.getSubtotal());
+        response.setTaxAmount(order.getTaxAmount());
+        response.setDeliveryFee(order.getDeliveryFee());
+        response.setDiscount(order.getDiscount());
         response.setTotalAmount(order.getTotalAmount());
         response.setCreatedAt(order.getCreatedAt());
         response.setUpdatedAt(order.getUpdatedAt());
         response.setUserName(order.getUser().getUsername());
+        response.setOrderNumber(order.getOrderNumber());
+        response.setOrderType(order.getOrderType().name());
 
-        List<OrderResponse.OrderItemResponse> itemResponses = order.getOrderItems().stream()
-                .map(item -> {
-                    OrderResponse.OrderItemResponse itemResponse = new OrderResponse.OrderItemResponse();
-                    itemResponse.setMenuItemName(item.getMenuItem().getName());
-                    itemResponse.setQuantity(item.getQuantity());
-                    itemResponse.setUnitPrice(item.getUnitPrice());
-                    itemResponse.setSpecialInstructions(item.getSpecialInstructions());
-                    return itemResponse;
-                })
-                .collect(Collectors.toList());
+        response.setItems(order.getOrderItems().stream().map(item -> {
+            OrderResponse.OrderItemResponse res = new OrderResponse.OrderItemResponse();
+            res.setMenuItemName(item.getMenuItem().getName());
+            res.setQuantity(item.getQuantity());
+            res.setUnitPrice(item.getUnitPrice());
+            res.setSpecialInstructions(item.getSpecialInstructions());
+            return res;
+        }).collect(Collectors.toList()));
 
-        response.setItems(itemResponses);
         return response;
     }
 
-    public void deleteOrderById(Long id) {
-        if (!orderRepository.existsById(id)) {
-            throw new RuntimeException("Order not found with ID: " + id);
-        }
-        orderRepository.deleteById(id);
+    public List<OrderResponse> getOrders() {
+        return orderRepository.findAll()
+                .stream()
+                .map(this::mapToOrderResponse)
+                .collect(Collectors.toList());
     }
 }

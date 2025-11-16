@@ -81,7 +81,7 @@ public class Order {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
-    enum OrderType {
+    public enum OrderType {
         DINE_IN, TAKEAWAY, DELIVERY
     }
     public enum OrderStatus {
